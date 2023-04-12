@@ -57,7 +57,7 @@ public class Scoreboard
         //CCBungeeCord start
         if ( !DISABLE_DUBLICATE )
         {
-        Preconditions.checkArgument( !objectives.containsKey( objective.getName() ), "Objective %s already exists in this scoreboard", objective.getName() );
+            Preconditions.checkArgument( !objectives.containsKey( objective.getName() ), "Objective %s already exists in this scoreboard", objective.getName() );
         } //CCBungeeCord end
         objectives.put( objective.getName(), objective );
     }
