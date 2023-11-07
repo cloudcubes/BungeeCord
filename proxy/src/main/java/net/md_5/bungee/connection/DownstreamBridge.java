@@ -20,7 +20,9 @@ import java.io.DataInput;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.ServerConnection.KeepAliveData;
 import net.md_5.bungee.UserConnection;
@@ -30,6 +32,7 @@ import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
+import net.md_5.bungee.api.connection.Server;
 import net.md_5.bungee.api.event.PluginMessageEvent;
 import net.md_5.bungee.api.event.ServerConnectEvent;
 import net.md_5.bungee.api.event.ServerDisconnectEvent;
@@ -418,6 +421,27 @@ public class DownstreamBridge extends PacketHandler
                     }
                     break;
                 }
+                case "GetPlayerServer":
+                {
+                    String name = in.readUTF();
+                    ProxiedPlayer player = bungee.getPlayer( name );
+                    out.writeUTF( "GetPlayerServer" );
+                    out.writeUTF( name );
+                    if ( player == null )
+                    {
+                        out.writeUTF( "" );
+                        break;
+                    }
+                    Server srv = player.getServer();
+                    if ( srv == null )
+                    {
+                        out.writeUTF( "" );
+                    } else
+                    {
+                        out.writeUTF( srv.getInfo().getName() );
+                    }
+                    break;
+                }
                 case "IP":
                     out.writeUTF( "IP" );
                     if ( con.getSocketAddress() instanceof InetSocketAddress )
@@ -579,6 +603,16 @@ public class DownstreamBridge extends PacketHandler
                     }
                     break;
                 }
+                case "KickPlayerRaw":
+                {
+                    ProxiedPlayer player = bungee.getPlayer( in.readUTF() );
+                    if ( player != null )
+                    {
+                        BaseComponent[] kickReason = ComponentSerializer.parse( in.readUTF() );
+                        player.disconnect( kickReason );
+                    }
+                    break;
+                }
             }
 
             // Check we haven't set out to null, and we have written data, if so reply back back along the BungeeCord channel
@@ -631,6 +665,23 @@ public class DownstreamBridge extends PacketHandler
                     return input.getText();
                 }
             } );
+        } else
+        {
+            String last = con.getLastCommandTabbed();
+            if ( last != null )
+            {
+                String commandName = last.toLowerCase( Locale.ROOT );
+                commands.addAll( bungee.getPluginManager().getCommands().stream()
+                        .filter( (entry) ->
+                        {
+                            String lowerCase = entry.getKey().toLowerCase( Locale.ROOT );
+                            return lowerCase.startsWith( commandName ) && entry.getValue().hasPermission( con ) && !bungee.getDisabledCommands().contains( lowerCase );
+                        } )
+                        .map( (stringCommandEntry) -> '/' + stringCommandEntry.getKey() )
+                        .collect( Collectors.toList() ) );
+                commands.sort( null );
+                con.setLastCommandTabbed( null );
+            }
         }
 
         TabCompleteResponseEvent tabCompleteResponseEvent = new TabCompleteResponseEvent( server, con, new ArrayList<>( commands ) );

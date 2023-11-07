@@ -11,7 +11,6 @@ import java.lang.annotation.Target;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -56,7 +55,7 @@ public class Config
             {
                 try
                 {
-                    if ( field.getAnnotation( Final.class ) != null )
+                    if ( field.getAnnotation( Final.class ) != null || Modifier.isFinal( field.getModifiers() ) )
                     {
                         return;
                     }
@@ -356,31 +355,6 @@ public class Config
     private void setAccessible(Field field) throws NoSuchFieldException, IllegalAccessException, NoSuchMethodException, InvocationTargetException
     {
         field.setAccessible( true );
-        int modifiers = field.getModifiers();
-        if ( Modifier.isFinal( modifiers ) )
-        {
-            try
-            {
-                Field modifiersField = Field.class.getDeclaredField( "modifiers" );
-                modifiersField.setAccessible( true );
-                modifiersField.setInt( field, modifiers & ~Modifier.FINAL );
-            } catch ( NoSuchFieldException e )
-            {
-                // Java 12 compatibility *this is fine*
-                Method getDeclaredFields0 = Class.class.getDeclaredMethod( "getDeclaredFields0", boolean.class );
-                getDeclaredFields0.setAccessible( true );
-                Field[] fields = (Field[]) getDeclaredFields0.invoke( Field.class, false );
-                for ( Field classField : fields )
-                {
-                    if ( "modifiers".equals( classField.getName() ) )
-                    {
-                        classField.setAccessible( true );
-                        classField.set( field, modifiers & ~Modifier.FINAL );
-                        break;
-                    }
-                }
-            }
-        }
     }
 
     private String repeat(final String s, final int n)
